@@ -1,5 +1,6 @@
-type IsSingle<T extends any[]> = T extends [any, any, ...any[]] ? false : true
-type Last<T extends any[]> = IsSingle<T> extends true ? T[0] : T extends [any, ...infer A] ? Last<A> : never
+// https://github.com/type-challenges/type-challenges/blob/main/questions/00015-medium-last/README.md
+
+type Last<T extends any[]> = T extends [any, infer F, ...infer S] ? Last<[F, ...S]> : T[0];
 
 type arr1 = ['a', 'b', 'c']
 type arr2 = [3, 2, 1]
