@@ -8,22 +8,44 @@ enum Comparison {
 }
 
 // My Types
-type StrToNum<T>
-    = T extends "1"  ?  1 :
-      T extends "2"  ?  2 :
-      T extends "3"  ?  3 :
-      T extends "4"  ?  4 :
-      T extends "5"  ?  5 :
-      T extends "6"  ?  6 :
-      T extends "7"  ?  7 :
-      T extends "8"  ?  8 :
-      T extends "9"  ?  9 : 0;
+type StrToNum<S extends string> = S extends `${infer N extends number}` ? N : 0;
+type IsNegative<N extends number | bigint> = `${N}` extends `-${string}` ? true : false;
+type NLengthArray<N extends number, R extends 0[] = []> = R["length"] extends N ? R : NLengthArray<N, [...R, 0]>;
+type StrSplit<A extends string> = A extends `${infer L extends string}${infer R extends string}` ? [L, ...StrSplit<R>] : [];
 
-type SimpleCompare<A extends number[], B extends number[]> = A extends [infer F, ...infer S extends number[]] ? B extends [infer X, ...infer Y extends number[]] ? SimpleCompare<S, Y> : "higher" : B extends [...infer X, infer Y] ? "lower" : "equal";
-type ArrayN<N extends number, C extends number[] = []> = C["length"] extends N ? C : ArrayN<N, [...C, 0]>;
-type IsNegative<T extends number> = `${T}` extends `${infer F}${infer S}` ? F extends "-" ? true : false : false;
-type StrChars<T extends string, C extends string[] = []> = T extends "" ? C : T extends `${infer F}${infer S}` ? StrChars<S, [...C, F]> : never;
-type ActualCompare<A extends string[], B extends string[], N extends boolean> = A extends [infer F, ...infer S extends string[]] ? B extends [infer X, ...infer Y extends string[]] ? (SimpleCompare<ArrayN<StrToNum<F>>, ArrayN<StrToNum<X>>> extends "equal" ? ActualCompare<S, Y, N> : SimpleCompare<ArrayN<StrToNum<F>>, ArrayN<StrToNum<X>>> extends "lower" ? (N extends true ? Comparison.Greater : Comparison.Lower) : (N extends true ? Comparison.Lower : Comparison.Greater)) : (N extends true ? Comparison.Lower : Comparison.Greater) : B extends [infer X, ...infer Y] ? (N extends true ? Comparison.Greater : Comparison.Lower) : Comparison.Equal;
-type Comparator<A extends number, B extends number> = IsNegative<A> extends IsNegative<B> ? ActualCompare<StrChars<`${A}`>, StrChars<`${B}`>, IsNegative<A>> : IsNegative<A> extends true ? Comparison.Lower : Comparison.Greater;
+type FlipCompare<C extends Comparison> = C extends Comparison.Lower ? Comparison.Greater : C extends Comparison.Greater ? Comparison.Lower : Comparison.Equal;
+type LengthCompare<A extends any[], B extends any[]>
+    = A extends [any, ...infer AR]
+        ? B extends [any, ...infer BR]
+            ? LengthCompare<AR, BR>
+            : Comparison.Greater
+        : B["length"] extends 0
+            ? Comparison.Equal
+            : Comparison.Lower;
 
+// A and B is same length
+type LoopAbsoluteCompare<A extends string[], B extends string[]>
+    = A extends [infer AL extends string, ...infer AR extends string[]]
+        ? B extends [infer BL extends string, ...infer BR extends string[]]
+            ? LengthCompare<NLengthArray<StrToNum<AL>>, NLengthArray<StrToNum<BL>>> extends infer C extends Comparison
+                ? C extends Comparison.Equal
+                    ? LoopAbsoluteCompare<AR, BR>
+                    : C
+                : never
+            : never
+        : Comparison.Equal;
 
+type AbsoluteCompare<A extends string[], B extends string[]> = 
+    LengthCompare<A, B> extends infer C extends Comparison
+        ? C extends Comparison.Equal
+            ? LoopAbsoluteCompare<A, B>
+            : C
+        : never;
+type Comparator<A extends number | bigint, B extends number | bigint>
+    = IsNegative<A> extends IsNegative<B>
+        ? AbsoluteCompare<StrSplit<`${A}`>, StrSplit<`${B}`>> extends infer C extends Comparison
+            ? IsNegative<A> extends true
+                ? FlipCompare<C>
+                : C
+            : never
+        : IsNegative<A> extends true ? Comparison.Lower : Comparison.Greater;
